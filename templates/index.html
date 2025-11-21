@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Query Application</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="main-container">
+        <header class="app-header">
+            <h1>🤖 AI Question & Answer Platform</h1>
+            <p class="subtitle">Ask anything and get intelligent responses powered by Groq LLM</p>
+        </header>
+
+        <section class="query-section">
+            <textarea 
+                id="userQuestionInput" 
+                placeholder="Type your question here..."
+                rows="4"
+            ></textarea>
+            
+            <button id="submitQueryButton" onclick="submitUserQuery()">
+                Ask AI
+            </button>
+        </section>
+
+        <section id="responseContainer" class="response-area" style="display: none;">
+            <h3>AI Response</h3>
+            <div id="aiAnswerDisplay" class="response-text"></div>
+        </section>
+
+        <div id="loadingIndicator" class="loading" style="display: none;">
+            ⏳ Processing your question...
+        </div>
+
+        <section class="history-section">
+            <h3>Recent Queries</h3>
+            <button id="historyButton" onclick="loadQueryHistory()">View History</button>
+            <div id="historyContainer"></div>
+        </section>
+
+        <footer>
+            <p>Built with ❤️ for CSC331 — Powered by Groq</p>
+        </footer>
+    </div>
+
+    <script>
+        async function submitUserQuery() {
+            const questionText = document.getElementById('userQuestionInput').value.trim();
+            
+            if (!questionText) {
+                alert('Please enter a question first!');
+                return;
+            }
+
+            document.getElementById('loadingIndicator').style.display = 'block';
+            document.getElementById('responseContainer').style.display = 'none';
+            document.getElementById('submitQueryButton').disabled = true;
+
+            try {
+                const serverResponse = await fetch('/ask-ai', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question: questionText })
+                });
+
+                const data = await serverResponse.json();
+
+                if (data.success) {
+                    document.getElementById('aiAnswerDisplay').innerText = data.answer;
+                    document.getElementById('responseContainer').style.display = 'block';
+                    document.getElementById('userQuestionInput').value = '';
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Could not connect to the server.');
+                console.error(error);
+            } finally {
+                document.getElementById('loadingIndicator').style.display = 'none';
+                document.getElementById('submitQueryButton').disabled = false;
+            }
+        }
+
+        async function loadQueryHistory() {
+            try {
+                const serverResponse = await fetch('/history');
+                const historyData = await serverResponse.json();
+
+                const historyDiv = document.getElementById('historyContainer');
+                
+                if (historyData.history && historyData.history.length > 0) {
+                    let html = '<div class="history-list">';
+                    
+                    historyData.history.forEach(item => {
+                        html += `
+                            <div class="history-item">
+                                <p class="history-question"><strong>Q:</strong> ${item.question}</p>
+                                <p class="history-answer"><strong>A:</strong> ${item.answer}</p>
+                                <p class="history-time">${item.timestamp}</p>
+                            </div>
+                        `;
+                    });
+                    
+                    html += '</div>';
+                    historyDiv.innerHTML = html;
+                } else {
+                    historyDiv.innerHTML = '<p>No query history yet.</p>';
+                }
+            } catch (error) {
+                alert('Error loading history.');
+                console.error(error);
+            }
+        }
+
+        document.getElementById('userQuestionInput').addEventListener('keydown', e => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                submitUserQuery();
+            }
+        });
+    </script>
+</body>
+</html>
